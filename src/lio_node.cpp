@@ -402,13 +402,27 @@ private:
                                 processed_count, event.timestamp, event.lidar_data->cloud->size(),
                                 event_queue_.size());
                     
-                    // Prepare result for publisher
+                    // Get current state
+                    State current_state = estimator_->GetCurrentState();
+                    
+                    // Publish pose immediately (if there are subscribers)
+                    if (pose_pub_->get_subscription_count() > 0) {
+                        publishPoseOnly(current_state, event.timestamp);
+                    }
+                    
+                    // Publish raw scan immediately (if there are subscribers)
+                    if (raw_scan_pub_->get_subscription_count() > 0) {
+                        rclcpp::Time ros_time(static_cast<int64_t>(event.timestamp * 1e9));
+                        publishRawScan(event.lidar_data->cloud, current_state, ros_time);
+                    }
+                    
+                    // Prepare result for publisher thread (other visualizations)
                     LIOProcessingResult result;
                     result.success = true;
                     result.timestamp = event.timestamp;
-                    result.state = estimator_->GetCurrentState();
+                    result.state = current_state;
                     result.processed_cloud = estimator_->GetProcessedCloud();
-                    result.raw_cloud = event.lidar_data->cloud;  // Keep raw cloud for visualization
+                    result.raw_cloud = nullptr;  // Already published in processing thread
                     result_queue_.push(result);
                 }
                 
@@ -529,6 +543,17 @@ private:
         tf_broadcaster_->sendTransform(transform);
         
         // Add to trajectory
+        geometry_msgs::msg::PoseStamped pose_msg;
+        pose_msg.header.stamp = ros_time;
+        pose_msg.header.frame_id = "map";
+        pose_msg.pose.position.x = state.m_position.x();
+        pose_msg.pose.position.y = state.m_position.y();
+        pose_msg.pose.position.z = state.m_position.z();
+        pose_msg.pose.orientation.x = q.x();
+        pose_msg.pose.orientation.y = q.y();
+        pose_msg.pose.orientation.z = q.z();
+        pose_msg.pose.orientation.w = q.w();
+        
         trajectory_.poses.push_back(pose_msg);
         trajectory_.header.stamp = ros_time;
         trajectory_.header.frame_id = "map";
@@ -543,10 +568,7 @@ private:
             publishCurrentScan(result.processed_cloud, result.state, ros_time);
         }
         
-        // 2. Publish raw scan (BLUE - original resolution, world frame)
-        if (result.raw_cloud && !result.raw_cloud->empty()) {
-            publishRawScan(result.raw_cloud, result.state, ros_time);
-        }
+        // 2. Raw scan already published in processing thread
         
         // 3. Publish map (RED)
         auto map_cloud = estimator_->GetMapPointCloud();
@@ -618,7 +640,7 @@ private:
         cloud_msg.is_bigendian = false;
         
         sensor_msgs::PointCloud2Modifier modifier(cloud_msg);
-        modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
+        modifier.setPointCloud2FieldsByString(2, "xyz", "rgba");
         modifier.resize(cloud->size());
         
         sensor_msgs::PointCloud2Iterator<float> iter_x(cloud_msg, "x");
@@ -627,6 +649,7 @@ private:
         sensor_msgs::PointCloud2Iterator<uint8_t> iter_r(cloud_msg, "r");
         sensor_msgs::PointCloud2Iterator<uint8_t> iter_g(cloud_msg, "g");
         sensor_msgs::PointCloud2Iterator<uint8_t> iter_b(cloud_msg, "b");
+        sensor_msgs::PointCloud2Iterator<uint8_t> iter_a(cloud_msg, "a");
         
         for (const auto& point : *cloud) {
             // Transform to world frame
@@ -638,9 +661,10 @@ private:
             *iter_r = 0;
             *iter_g = 0;
             *iter_b = 255;  // Blue (raw scan)
+            *iter_a = 26;   // Alpha = 26/255 ≈ 0.1
             
             ++iter_x; ++iter_y; ++iter_z;
-            ++iter_r; ++iter_g; ++iter_b;
+            ++iter_r; ++iter_g; ++iter_b; ++iter_a;
         }
         
         raw_scan_pub_->publish(cloud_msg);

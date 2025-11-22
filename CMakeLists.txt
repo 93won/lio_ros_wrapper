@@ -91,6 +91,12 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}
 )
 
+# Install rviz config files
+install(DIRECTORY
+  rviz
+  DESTINATION share/${PROJECT_NAME}
+)
+
 # Install LIO config files (from lidar_inertial_odometry)
 install(DIRECTORY
   lidar_inertial_odometry/config/
