@@ -2,6 +2,8 @@
 
 ROS2 wrapper for [lidar_inertial_odometry](https://github.com/93won/lidar_inertial_odometry).
 
+### MIT License
+
 ## Demo Video
 
 [![LIO ROS Wrapper Demo](https://img.youtube.com/vi/AlfKASD0Rrc/0.jpg)](https://youtu.be/AlfKASD0Rrc)
