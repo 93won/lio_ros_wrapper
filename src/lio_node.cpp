@@ -518,10 +518,17 @@ private:
         odom_msg.pose.pose.orientation.z = q.z();
         odom_msg.pose.pose.orientation.w = q.w();
         
-        // Velocity
+        // Linear velocity (world frame)
         odom_msg.twist.twist.linear.x = state.m_velocity.x();
         odom_msg.twist.twist.linear.y = state.m_velocity.y();
         odom_msg.twist.twist.linear.z = state.m_velocity.z();
+        
+        // Angular velocity (world frame)
+        // Transform gyroscope (body frame) to world frame: omega_world = R_wb * omega_body
+        Eigen::Vector3f omega_world = state.m_rotation * state.m_gyro;
+        odom_msg.twist.twist.angular.x = omega_world.x();
+        odom_msg.twist.twist.angular.y = omega_world.y();
+        odom_msg.twist.twist.angular.z = omega_world.z();
         
         odom_pub_->publish(odom_msg);
         
