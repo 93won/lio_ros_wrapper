@@ -1,0 +1,3 @@
+[submodule "lidar_inertial_odometry"]
+	path = lidar_inertial_odometry
+	url = https://github.com/93won/lidar_inertial_odometry.git
