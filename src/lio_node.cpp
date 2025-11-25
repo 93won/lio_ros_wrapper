@@ -52,7 +52,10 @@ public:
                 imu_count_(0),
                 lidar_count_(0),
                 running_(true),
-                gravity_initialized_(false)
+                gravity_initialized_(false),
+                prev_rotation_(Eigen::Matrix3f::Identity()),
+                prev_timestamp_(0.0),
+                first_odom_frame_(true)
     {
         // Declare parameters
         this->declare_parameter<std::string>("imu_topic", "/livox/imu");
@@ -524,11 +527,35 @@ private:
         odom_msg.twist.twist.linear.z = state.m_velocity.z();
         
         // Angular velocity (world frame)
-        // Transform gyroscope (body frame) to world frame: omega_world = R_wb * omega_body
-        Eigen::Vector3f omega_world = state.m_rotation * state.m_gyro;
-        odom_msg.twist.twist.angular.x = omega_world.x();
-        odom_msg.twist.twist.angular.y = omega_world.y();
-        odom_msg.twist.twist.angular.z = omega_world.z();
+        // Calculate from rotation difference: omega = log(R_prev^T * R_curr) / dt
+        if (!first_odom_frame_ && (timestamp - prev_timestamp_) > 1e-6) {
+            double dt = timestamp - prev_timestamp_;
+            
+            // Compute relative rotation: dR = R_prev^T * R_curr
+            Eigen::Matrix3f dR = prev_rotation_.transpose() * state.m_rotation;
+            
+            // Convert rotation matrix to axis-angle representation
+            Eigen::AngleAxisf angle_axis(dR);
+            float angle = angle_axis.angle();
+            Eigen::Vector3f axis = angle_axis.axis();
+            
+            // Angular velocity in world frame: omega = (R_prev * axis) * (angle / dt)
+            Eigen::Vector3f omega_world = (prev_rotation_ * axis) * (angle / dt);
+            
+            odom_msg.twist.twist.angular.x = omega_world.x();
+            odom_msg.twist.twist.angular.y = omega_world.y();
+            odom_msg.twist.twist.angular.z = omega_world.z();
+        } else {
+            // First frame or dt too small, set angular velocity to zero
+            odom_msg.twist.twist.angular.x = 0.0;
+            odom_msg.twist.twist.angular.y = 0.0;
+            odom_msg.twist.twist.angular.z = 0.0;
+            first_odom_frame_ = false;
+        }
+        
+        // Update previous state for next iteration
+        prev_rotation_ = state.m_rotation;
+        prev_timestamp_ = timestamp;
         
         odom_pub_->publish(odom_msg);
         
@@ -799,6 +826,11 @@ private:
     // Counters
     size_t imu_count_;
     size_t lidar_count_;
+    
+    // Previous state for angular velocity calculation
+    Eigen::Matrix3f prev_rotation_;
+    double prev_timestamp_;
+    bool first_odom_frame_;
 };
 
 int main(int argc, char** argv)
