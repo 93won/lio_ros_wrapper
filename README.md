@@ -16,6 +16,7 @@ ROS2 wrapper for [lidar_inertial_odometry](https://github.com/93won/lidar_inerti
 # Clone with submodules
 cd ~/ros2_ws/src
 git clone --recursive https://github.com/93won/lio_ros_wrapper.git
+cd lio_ros_wrapper
 
 # If already cloned without --recursive
 git submodule update --init --recursive
