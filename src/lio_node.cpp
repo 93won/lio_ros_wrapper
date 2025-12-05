@@ -135,6 +135,8 @@ public:
         estimator_->m_params.keyframe_rotation_threshold = config_.estimator.keyframe_rotation_threshold;
         estimator_->m_params.scan_planarity_threshold = config_.estimator.scan_planarity_threshold;
         estimator_->m_params.map_planarity_threshold = config_.estimator.map_planarity_threshold;
+        estimator_->m_params.stride = config_.estimator.stride;
+        estimator_->m_params.stride_then_voxel = config_.estimator.stride_then_voxel;
         
         // Configure IMU noise parameters (convert covariance to standard deviation)
         estimator_->m_params.gyr_noise_std = std::sqrt(config_.imu.gyr_cov);

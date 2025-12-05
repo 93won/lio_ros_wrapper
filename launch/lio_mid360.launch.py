@@ -20,20 +20,19 @@ def generate_launch_description():
     # Use config from lidar_inertial_odometry subdirectory
     default_config = os.path.join(pkg_share, 'config', 'lidar_inertial_odometry', 'mid360.yaml')
     
-    # Use source directory for rviz config during development (no need to rebuild)
-    # default_rviz_config = os.path.join(pkg_share, 'rviz', 'lio_rviz.rviz')
-    default_rviz_config = '/home/eugene/clobot_fusion/ros2/src/lio_ros_wrapper/rviz/lio_rviz.rviz'
+    # RViz config path (relative to package)
+    default_rviz_config = os.path.join(pkg_share, 'rviz', 'lio_rviz.rviz')
     
     return LaunchDescription([
         # Declare launch arguments
         DeclareLaunchArgument(
             'imu_topic',
-            default_value='/livox/mid360/imu',
+            default_value='/livox/imu',
             description='IMU data topic'
         ),
         DeclareLaunchArgument(
             'lidar_topic',
-            default_value='/livox/mid360/lidar',
+            default_value='/livox/lidar',
             description='LiDAR point cloud topic'
         ),
         DeclareLaunchArgument(
