@@ -406,6 +406,9 @@ private:
                     // Get current state
                     State current_state = estimator_->GetCurrentState();
                     
+                    // Publish pose immediately after LiDAR update
+                    publishPoseOnly(current_state, event.timestamp);
+                    
                     // Publish raw scan immediately (if there are subscribers)
                     if (raw_scan_pub_->get_subscription_count() > 0) {
                         rclcpp::Time ros_time(static_cast<int64_t>(event.timestamp * 1e9));
