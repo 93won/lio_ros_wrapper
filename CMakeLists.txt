@@ -35,6 +35,7 @@ include_directories(
   ${EIGEN3_INCLUDE_DIR}
   ${LIO_DIR}/src/core
   ${LIO_DIR}/src/util
+  ${LIO_DIR}/thirdparty/unordered_dense
 )
 
 # Collect LIO source files (no viewer - use RViz for visualization)

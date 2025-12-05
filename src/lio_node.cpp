@@ -48,11 +48,11 @@ struct LIOProcessingResult {
 class LIONode : public rclcpp::Node
 {
 public:
-    LIONode() : Node("lio_node"), 
+    LIONode() : Node("lio_node"),
+                gravity_initialized_(false),
+                running_(true),
                 imu_count_(0),
                 lidar_count_(0),
-                running_(true),
-                gravity_initialized_(false),
                 prev_rotation_(Eigen::Matrix3f::Identity()),
                 prev_timestamp_(0.0),
                 first_odom_frame_(true)
@@ -127,7 +127,6 @@ public:
         estimator_->m_params.convergence_threshold = config_.estimator.convergence_threshold;
         estimator_->m_params.enable_undistortion = config_.estimator.enable_undistortion;
         estimator_->m_params.max_map_distance = config_.estimator.max_distance;
-        estimator_->m_params.max_voxel_hit_count = config_.estimator.max_voxel_hit_count;
         estimator_->m_params.voxel_hierarchy_factor = config_.estimator.voxel_hierarchy_factor;
         estimator_->m_params.frustum_fov_horizontal = config_.estimator.frustum_fov_horizontal;
         estimator_->m_params.frustum_fov_vertical = config_.estimator.frustum_fov_vertical;
@@ -137,11 +136,11 @@ public:
         estimator_->m_params.scan_planarity_threshold = config_.estimator.scan_planarity_threshold;
         estimator_->m_params.map_planarity_threshold = config_.estimator.map_planarity_threshold;
         
-        // Configure IMU noise parameters
-        estimator_->m_params.gyr_noise_std = config_.imu.gyro_noise_density;
-        estimator_->m_params.acc_noise_std = config_.imu.acc_noise_density;
-        estimator_->m_params.gyr_bias_noise_std = config_.imu.gyro_bias_random_walk;
-        estimator_->m_params.acc_bias_noise_std = config_.imu.acc_bias_random_walk;
+        // Configure IMU noise parameters (convert covariance to standard deviation)
+        estimator_->m_params.gyr_noise_std = std::sqrt(config_.imu.gyr_cov);
+        estimator_->m_params.acc_noise_std = std::sqrt(config_.imu.acc_cov);
+        estimator_->m_params.gyr_bias_noise_std = std::sqrt(config_.imu.b_gyr_cov);
+        estimator_->m_params.acc_bias_noise_std = std::sqrt(config_.imu.b_acc_cov);
         
         // Configure extrinsics
         estimator_->m_params.R_il = config_.extrinsics.R_il.cast<float>();
@@ -383,9 +382,6 @@ private:
                     estimator_->ProcessIMU(*event.imu_data);
                     imu_processed++;
                     
-                    // Publish pose at IMU rate (100Hz)
-                    publishPoseOnly(estimator_->GetCurrentState(), event.timestamp);
-                    
                     RCLCPP_DEBUG(this->get_logger(), "[%zu] IMU @ %.9f | acc=[%.3f, %.3f, %.3f] gyr=[%.3f, %.3f, %.3f]", 
                                 processed_count, event.timestamp,
                                 event.imu_data->acc.x(),
@@ -407,11 +403,6 @@ private:
                     
                     // Get current state
                     State current_state = estimator_->GetCurrentState();
-                    
-                    // Publish pose immediately (if there are subscribers)
-                    if (pose_pub_->get_subscription_count() > 0) {
-                        publishPoseOnly(current_state, event.timestamp);
-                    }
                     
                     // Publish raw scan immediately (if there are subscribers)
                     if (raw_scan_pub_->get_subscription_count() > 0) {
