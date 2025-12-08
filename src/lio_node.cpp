@@ -406,8 +406,9 @@ private:
                     // Get current state
                     State current_state = estimator_->GetCurrentState();
                     
-                    // Publish pose immediately after LiDAR update
+                    // Publish pose and odometry immediately after LiDAR update (synchronized)
                     publishPoseOnly(current_state, event.timestamp);
+                    publishOdometry(current_state, event.timestamp);
                     
                     // Publish raw scan immediately (if there are subscribers)
                     if (raw_scan_pub_->get_subscription_count() > 0) {
@@ -452,10 +453,8 @@ private:
             LIOProcessingResult result = result_opt.value();
             
             if (result.success) {
-                // Publish odometry & TF
-                publishOdometry(result.state, result.timestamp);
-                
-                // Publish visualization
+                // Odometry is now published in processing thread (synchronized with pose)
+                // Only publish visualization here
                 publishVisualization(result);
                 
                 published_count++;
